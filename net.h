@@ -32,6 +32,8 @@
 #include <setjmp.h>
 #include <syslog.h>
 
+#include <sys/epoll.h>
+
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/select.h>
@@ -46,13 +48,15 @@
 
 #define MAX_BUFFER_SIZE 65535
 
+#define MAXEVENTS 64
+
 extern client_t *clients;
 extern int VERBOSE;
 extern int FORKED;
 
 
 
-void handle_inside(int inside, host_t *listen_h, host_t *bind_h, host_t *dst_h);
+void handle_inside(int inside, host_t *listen_h, host_t *bind_h, host_t *dst_h, int efd);
 void handle_outside(int inside, int outside, host_t *outside_h);
 
 int main_loop(int listensocket, host_t *listen_h, host_t *bind_h, host_t *dst_h);
@@ -66,6 +70,8 @@ int get_sender(fd_set *fds);
 int bindsocket( host_t *sock_h);
 void int_handler(int  sig);
 void verb_prbind (host_t *bind_h);
+
+int set_socket_non_blocking(int fd);
 
 #define _IS_LINK_LOCAL(a) do { IN6_IS_ADDR_LINKLOCAL(a); } while(0)
 

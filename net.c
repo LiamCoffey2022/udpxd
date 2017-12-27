@@ -256,25 +256,32 @@ int start_listener (char *inip, char *inpt, char *srcip, char *srcpt, char *dsti
 }
 
 /* handle new or known incoming requests */
-void handle_inside(int inside, host_t *listen_h, host_t *bind_h, host_t *dst_h) {
+void handle_inside(int inside, host_t *listen_h, host_t *bind_h, host_t *dst_h, int efd) {
   int len;
   unsigned char buffer[MAX_BUFFER_SIZE];
-  void *src;
+  struct sockaddr_storage src;
   client_t *client;
   host_t *src_h;
   int output;
-  size_t size = listen_h->size;
 
-  src = malloc(size);
-  
+while(1) {  // read until empty
+  size_t size = sizeof(src);
   len = recvfrom( inside, buffer, sizeof( buffer ), 0,
-                  (struct sockaddr*)src, (socklen_t *)&size );
+                  (struct sockaddr*)&src, (socklen_t *)&size );
+  if(len == -1) {
+     if(errno == EINTR)
+        continue;
+     if ((errno != EAGAIN) && (errno != EWOULDBLOCK))	
+        perror("recvfrom client fd error:");
+     /*  all data processed or error. */ 
+     return;
+  }
 
   if(len > 0) {
     if(listen_h->is_v6)
-      src_h = get_host(NULL, 0, NULL, (struct sockaddr_in6 *)src);
+      src_h = get_host(NULL, 0, NULL, (struct sockaddr_in6 *)&src);
     else
-      src_h = get_host(NULL, 0, (struct sockaddr_in *)src, NULL);
+      src_h = get_host(NULL, 0, (struct sockaddr_in *)&src, NULL);
     /* do we know it ? */
     client = client_find_src(src_h);
     if(client != NULL) {
@@ -284,6 +291,8 @@ void handle_inside(int inside, host_t *listen_h, host_t *bind_h, host_t *dst_h) 
       verb_prbind(bind_h);
 
       if(sendto(client->socket, buffer, len, 0, (struct sockaddr*)dst_h->sock, dst_h->size) < 0) {
+        if((errno == EAGAIN) || (errno == EWOULDBLOCK)) // droping packet
+	  continue;
         fprintf(stderr, "unable to forward to %s:%d\n", dst_h->ip, dst_h->port);
         perror(NULL);
       }
@@ -326,6 +335,17 @@ void handle_inside(int inside, host_t *listen_h, host_t *bind_h, host_t *dst_h) 
           }
 
           client_add(client);
+          if (set_socket_non_blocking(output) < 0) {
+	    perror("error: set_socket_non_blocking");
+	    exit(-1);
+          }
+          struct epoll_event event;
+          event.data.fd = output;
+	  event.events = EPOLLIN | EPOLLET;
+          if (epoll_ctl(efd, EPOLL_CTL_ADD, output, &event) < 0) {
+            perror("error: epoll_ctl_add of newclient");
+	  }
+          fprintf(stderr,"%s:%d(%s:%d)->%s:%d\n",src_h->ip,src_h->port,ret_h->ip,ret_h->port,dst_h->ip,dst_h->port);
         }
       }
       else {
@@ -333,21 +353,31 @@ void handle_inside(int inside, host_t *listen_h, host_t *bind_h, host_t *dst_h) 
       }
     }
   }
-  free(src);
+}
 }
 
 /* handle answer from the outside */
-void handle_outside(int inside, int outside, host_t *outside_h) {
+void handle_outside(int inside, int outside, host_t * outside_h) {
   int len;
   unsigned char buffer[MAX_BUFFER_SIZE];
-  void *src;
+  struct sockaddr_storage src;
   client_t *client;
-
   size_t size = outside_h->size;
-  src = malloc(size);
+
+while(1) {  // read until empty
+
+  size = sizeof(src);
   
-  len = recvfrom( outside, buffer, sizeof( buffer ), 0, (struct sockaddr*)src, (socklen_t *)&size );
-  free(src);
+  len = recvfrom( outside, buffer, sizeof( buffer ), 0, (struct sockaddr*)&src, (socklen_t *)&size );
+
+  if(len == -1) {
+     if(errno == EINTR)
+        continue;
+     if ((errno != EAGAIN) && (errno != EWOULDBLOCK))
+        perror("recvfrom client fd error:");
+     /*  all data processed or error */ 
+     return;
+  }
 
   if(len > 0) {
     /* do we know it? */
@@ -369,21 +399,58 @@ void handle_outside(int inside, int outside, host_t *outside_h) {
     fprintf(stderr, "weird, recvfrom returned 0 bytes!\n");
   }
 }
+}
+
+int set_socket_non_blocking(int fd) {
+  int flags;
+  flags = fcntl(fd, F_GETFL, 0);
+  if (flags < 0)
+    return -1;
+  flags |= O_NONBLOCK;
+  if (fcntl(fd, F_SETFL, flags) < 0)
+     return -1;
+   return 0;
+}
 
 /* stores system specific information, used by longjmp(), see below */
 jmp_buf  JumpBuffer;
 
 /* runs forever, handles incoming requests on the inside and answers on the outside */
 int main_loop(int listensocket, host_t *listen_h, host_t *bind_h, host_t *dst_h) {
-  int max, sender;
-  fd_set fds;
+  int efd;
+  struct epoll_event event, *events;
+  int sender;
 
   /* we want to properly tear  down running sessions when interrupted,
      int_handler() will be called on INT or TERM signals */
   signal(SIGINT, int_handler);
   signal(SIGTERM, int_handler);
 
-  for(;;) {
+  if (set_socket_non_blocking(listensocket) < 0) {
+	perror("error: set_socket_non_blocking");
+	exit(-1);
+  }
+
+  if ((efd = epoll_create(10240)) < 0) {
+    perror("error: epoll_create1");
+    exit(-1);
+  }
+  event.data.fd = listensocket;
+  event.events = EPOLLIN | EPOLLET;
+  if (epoll_ctl(efd, EPOLL_CTL_ADD, listensocket, &event) < 0) {
+    perror("error: epoll_ctl_add of listenfd");
+    exit(-1);
+  }
+  /* Buffer where events are returned */
+  events = calloc(MAXEVENTS, sizeof event);
+  if (events == NULL) {
+    perror("error: calloc memory");
+    exit(-1);
+  }
+  // Event Loop 
+  while (1) {
+    int n, i;
+
     /*
       Normally returns 0, that is, if it's the first instruction after
       entering the loop.  However, it  will return 1, when called from
@@ -395,23 +462,15 @@ int main_loop(int listensocket, host_t *listen_h, host_t *bind_h, host_t *dst_h)
       break;
     }
 
-    FD_ZERO(&fds);
-    max = fill_set(&fds);
-
-    FD_SET(listensocket, &fds);
-    if (listensocket > max)
-      max = listensocket;
-
-    select(max + 1, &fds, NULL, NULL, NULL);
-
-    if (FD_ISSET(listensocket, &fds)) {
+    n = epoll_wait(efd, events, MAXEVENTS, -1);
+    for (i = 0; i < n; i++) {
+      if (listensocket == events[i].data.fd) {
       /* incoming client on  the inside, get src, bind  output fd, add
          to list if known, otherwise just handle it */
-      handle_inside(listensocket, listen_h, bind_h, dst_h);
-    }
-    else {
+        handle_inside(listensocket, listen_h, bind_h, dst_h, efd);
+      }
       /* remote answer came in on an output fd, proxy back to the inside */
-      sender = get_sender(&fds);
+      sender = events[i].data.fd;
       handle_outside(listensocket, sender, dst_h);
     }
 
