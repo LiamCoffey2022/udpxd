@@ -24,38 +24,6 @@
 #include "host.h"
 #include "log.h"
 
-
-
-/* called each time when the loop restarts to feed select() correctly */
-int fill_set(fd_set *fds) {
-  int max = 0;
-
-  client_t *current = NULL;
-  client_iter(clients, current) {
-    if (current->socket < (int)FD_SETSIZE) {
-      if (current->socket > max)
-        max = current->socket;
-      FD_SET(current->socket, fds);
-    }
-    else {
-      fprintf(stderr, "skipped client, socket too large!\n");
-    }
-  }
-
-  return max;
-}
-
-/* return file handle ready to read */
-int get_sender(fd_set *fds) {
-    int i = 0;
-
-    while(!FD_ISSET(i, fds))
-        i++;
-
-    return i;
-}
-
-
 /* bind to a socket, either for listen() or for outgoing src ip binding */
 int bindsocket( host_t *sock_h) {
   int fd;

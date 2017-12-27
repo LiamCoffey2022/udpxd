@@ -65,8 +65,6 @@ int start_listener (char *inip, char *inpt, char *srcip, char *srcpt, char *dsti
 int daemonize(char *pidfile);
 int drop_privileges(char *user, char *chrootdir);
 
-int fill_set(fd_set *fds);
-int get_sender(fd_set *fds);
 int bindsocket( host_t *sock_h);
 void int_handler(int  sig);
 void verb_prbind (host_t *bind_h);
