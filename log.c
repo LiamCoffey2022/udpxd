@@ -46,3 +46,26 @@ void verbose(const char * fmt, ...) {
     }
   }
 }
+
+
+void Log(const char * fmt, ...) {
+    char *msg = NULL;
+    va_list ap;
+    va_start(ap, fmt);
+
+    if(vasprintf(&msg, fmt, ap) >= 0) {
+
+      if(FORKED) {
+        syslog(LOG_INFO, "%s", msg);
+      }
+      else {
+        fprintf(stderr, "%s", msg);
+      }
+      free(msg);
+      va_end(ap);
+    }
+    else {
+      fprintf(stderr, "Fatal: could not store log message!\n");
+      exit(1);
+    }
+}

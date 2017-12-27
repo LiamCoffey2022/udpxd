@@ -27,6 +27,7 @@
 client_t *clients = NULL;
 int VERBOSE = 0;
 int FORKED = 0;
+int LOG = 0;
 
 /* parse ip:port */
 int parse_ip(char *src, char *ip, char *pt) {
@@ -102,6 +103,7 @@ void usage() {
           "--help       -h -?            print help message\n"
           "--version    -V               print program version\n"
           "--verbose    -v               enable verbose logging\n\n"
+          "--log        -L               logging connection\n\n"
           "Options -l and -t are mandatory.\n\n"
           "This is udpxd version %s.\n", UDPXD_VERSION
           );
@@ -126,6 +128,7 @@ int main ( int argc, char* argv[] ) {
     { "help",      no_argument,       NULL,           'h' },
     { "verbose",   no_argument,       NULL,           'v' },
     { "daemon",    no_argument,       NULL,           'd' },
+    { "log",       no_argument,       NULL,           'L' },
     { "pidfile",   required_argument, NULL,           'p' },
     { "user",      required_argument, NULL,           'u' },
     { "chroot",    required_argument, NULL,           'c' },
@@ -143,11 +146,14 @@ int main ( int argc, char* argv[] ) {
   strncpy(user, "nobody", 7);
   strncpy(chroot, "/var/empty", 11);
   
-  while ((opt = getopt_long(argc, argv, "l:b:t:u:c:vdVh?", longopts, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "Ll:b:t:u:c:vdVh?", longopts, NULL)) != -1) {
     switch (opt) {
     case 'V':
       fprintf(stderr, "This is %s version %s\n", argv[0], UDPXD_VERSION);
       return 1;
+      break;
+    case 'L':
+      LOG = 1;
       break;
     case 'd':
       FORKED = 1;

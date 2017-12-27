@@ -34,7 +34,9 @@
 
 extern int VERBOSE;
 extern int FORKED;
+extern int LOG;
 
 void verbose(const char * fmt, ...);
+void Log(const char * fmt, ...);
 
 #endif

@@ -345,7 +345,7 @@ while(1) {  // read until empty
           if (epoll_ctl(efd, EPOLL_CTL_ADD, output, &event) < 0) {
             perror("error: epoll_ctl_add of newclient");
 	  }
-          fprintf(stderr,"%s:%d(%s:%d)->%s:%d\n",src_h->ip,src_h->port,ret_h->ip,ret_h->port,dst_h->ip,dst_h->port);
+          if(LOG) Log("%s:%d(%s:%d)->%s:%d\n",src_h->ip,src_h->port,ret_h->ip,ret_h->port,dst_h->ip,dst_h->port);
         }
       }
       else {
