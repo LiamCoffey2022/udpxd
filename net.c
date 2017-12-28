@@ -296,7 +296,7 @@ while(1) {  // read until empty
             perror("error: epoll_ctl_add of newclient");
 	  }
           if(LOG) Log("%s:%d(%s:%d)->%s:%d\n",host_ip(src_h),host_port(src_h),host_ip2(ret_h),host_port(ret_h),host_ip3(dst_h),host_port(dst_h));
-          verbose("add new client %p\n",client);	
+          verbose("add new client %s:%p %p\n",host_ip(src_h),host_port(src_h),client);	
           host_clean(ret_h);
         }
       }
@@ -327,8 +327,9 @@ while(1) {  // read until empty
     verbose("recv remote packet for client %p\n",client);	
     sendto(inside, buffer, len, 0, (struct sockaddr*)&client->src.ss, sizeof(struct sockaddr_storage));
     if( ACK_DEL ) {	// got acked packet, then close, for req ack udp, such as DNS
-       client_close(client);
-       return;
+      verbose("got ack, delete client %s:%d %p\n", host_ip(&client->src), host_port(&client->src),client);
+      client_close(client);
+      return;
     }
   }
   if(len == 0)  {
