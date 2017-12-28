@@ -63,7 +63,7 @@ void client_clean(int asap) {
     diff = now - current->lastseen;
     if(diff >= MAXAGE || asap) {
       verbose("closing socket %s:%d for client %s:%d (aged out after %d seconds)\n",
-              current->src.ip, current->src.port, current->dst.ip, current->dst.port, MAXAGE);
+              host_ip(&current->src), host_port(&current->src), host_ip2(&current->dst), host_port(&current->dst), MAXAGE);
       client_close(current);
     }
   }

@@ -49,6 +49,8 @@ int is_v6(char *ip);
 
 void host_dump(host_t *host);
 char *host_ip(host_t *host);
+char *host_ip2(host_t *host);
+char *host_ip3(host_t *host);
 int host_port(host_t *host);
 
 void host_clean(host_t *host);

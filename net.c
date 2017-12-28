@@ -29,19 +29,19 @@ int bindsocket( host_t *sock_h) {
   int fd;
   int err = 0;
 
-  if(sock_h->is_v6) {
+  if(sock_h->ss.ss_family == AF_INET6) {
     fd = socket( PF_INET6, SOCK_DGRAM, IPPROTO_UDP );
   }
   else {
     fd = socket( PF_INET, SOCK_DGRAM, IPPROTO_UDP );
   }
 
-  if( ! ( fd >= 0 && -1 != bind( fd, (struct sockaddr*)sock_h->sock, sock_h->size ) ) ) {
+  if( ! ( fd >= 0 && -1 != bind( fd, (struct sockaddr*)&sock_h->ss, sizeof(struct sockaddr_storage) ) ) ) {
     err = 1;
   }
 
   if(err) {
-    fprintf( stderr, "Cannot bind address ([%s]:%d)\n", sock_h->ip, sock_h->port );
+    fprintf( stderr, "Cannot bind address ([%s]:%d)\n", host_ip(sock_h), host_port(sock_h));
     perror(NULL);
     return -1;
   }
@@ -179,7 +179,7 @@ int start_listener (char *inip, char *inpt, char *srcip, char *srcpt, char *dsti
     bind_h   = get_host(srcip, atoi(srcpt), NULL, NULL);
   }
   else {
-    if(dst_h->is_v6)
+    if(dst_h->ss.ss_family == AF_INET6 )
       bind_h = get_host("::0", 0, NULL, NULL);
     else
       bind_h = get_host("0.0.0.0", 0, NULL, NULL);
@@ -192,9 +192,9 @@ int start_listener (char *inip, char *inpt, char *srcip, char *srcpt, char *dsti
 
   if(VERBOSE) {
     verbose("Listening on %s:%s, forwarding to %s:%s",
-            listen_h->ip, inpt, dst_h->ip, dstpt);
+            host_ip(listen_h), inpt, host_ip2(dst_h), dstpt);
     if(srcip != NULL)
-      verbose(", binding to %s\n", bind_h->ip);
+      verbose(", binding to %s\n", host_ip(bind_h));
     else
       verbose("\n");
   }
@@ -246,7 +246,7 @@ while(1) {  // read until empty
   }
 
   if(len > 0) {
-    if(listen_h->is_v6)
+    if(listen_h->ss.ss_family == AF_INET6)
       src_h = get_host(NULL, 0, NULL, (struct sockaddr_in6 *)&src);
     else
       src_h = get_host(NULL, 0, (struct sockaddr_in *)&src, NULL);
@@ -255,17 +255,17 @@ while(1) {  // read until empty
     if(client != NULL) {
       /* yes, we know it, send req out via existing bind socket */
       verbose("Client %s:%d is known, forwarding %d bytes to %s:%d ",
-              src_h->ip, src_h->port, len, dst_h->ip, dst_h->port);
+              host_ip(src_h), host_port(src_h), len, host_ip2(dst_h), host_port(dst_h));
       verb_prbind(bind_h);
 
-      sendto(client->fd, buffer, len, 0, (struct sockaddr*)dst_h->sock, dst_h->size);
+      sendto(client->fd, buffer, len, 0, (struct sockaddr*)&dst_h->ss, sizeof(struct sockaddr_storage));
       client_seen(client);
       host_clean(src_h);
     }
     else {
       /* unknown client, open new out socket */
       verbose("Client %s:%d is unknown, forwarding %d bytes to %s:%d ",
-              src_h->ip, src_h->port, len, dst_h->ip, dst_h->port);
+              host_ip(src_h), host_port(src_h), len, host_ip2(dst_h), host_port(dst_h));
       verb_prbind(bind_h);
 
       if (bind_h->port)
@@ -273,27 +273,20 @@ while(1) {  // read until empty
       output = bindsocket(bind_h);
       if (output >= 0) {
         /* send req out */
-        if(sendto(output, buffer, len, 0, (struct sockaddr*)dst_h->sock, dst_h->size) < 0) {
-            fprintf(stderr, "unable to forward to %s:%d\n", dst_h->ip, dst_h->port);
+        if(sendto(output, buffer, len, 0, (struct sockaddr*)&dst_h->ss, sizeof(struct sockaddr_storage)) < 0) {
+            fprintf(stderr, "unable to forward to %s:%d\n", host_ip(dst_h), host_port(dst_h));
             perror(NULL);
         }
         else {
           size = listen_h->size;
           host_t *ret_h;
-          if(listen_h->is_v6) {
-            struct sockaddr_in6 *ret = malloc(size);
-            getsockname(output, (struct sockaddr*)ret, (socklen_t *)&size);
+          struct sockaddr_storage ret;
+          getsockname(output, (struct sockaddr*)ret, (socklen_t *)&size);
+          if(listen_h->ss.ss_family == AF_INET6 ) 
             ret_h = get_host(NULL, 0, NULL, ret);
-            free(ret);
-            client = client_new(output, src_h, ret_h);
-          }
-          else {
-            struct sockaddr_in *ret = malloc(size);
-            getsockname(output, (struct sockaddr*)ret, (socklen_t *)&size);
+	  else 
             ret_h = get_host(NULL, 0, ret, NULL);
-            free(ret);
-            client = client_new(output, src_h, ret_h);
-          }
+          client = client_new(output, src_h, ret_h);
 
           client_add(client);
           if (set_socket_non_blocking(output) < 0) {
@@ -306,7 +299,7 @@ while(1) {  // read until empty
           if (epoll_ctl(efd, EPOLL_CTL_ADD, output, &event) < 0) {
             perror("error: epoll_ctl_add of newclient");
 	  }
-          if(LOG) Log("%s:%d(%s:%d)->%s:%d\n",src_h->ip,src_h->port,ret_h->ip,ret_h->port,dst_h->ip,dst_h->port);
+          if(LOG) Log("%s:%d(%s:%d)->%s:%d\n",host_ip(src_h),host_port(src_h),host_ip2(ret_h),host_port(ret_h),host_ip3(dst_h),host_port(dst_h));
           verbose("add new client %p\n",client);	
           // host_clean(ret_h);
         }
