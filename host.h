@@ -38,11 +38,7 @@
 #include <ifaddrs.h>
 
 struct _host_t {
-  int is_v6;
-  struct sockaddr *sock;
-  size_t size;
-  char *ip;
-  int port;
+  struct sockaddr_storage ss;
 };
 typedef struct _host_t host_t;
 
@@ -50,7 +46,11 @@ unsigned get_v6_scope(const char *ip);
 int is_linklocal(struct in6_addr *a);
 host_t *get_host(char *ip, int port, struct sockaddr_in *v4, struct sockaddr_in6 *v6);
 int is_v6(char *ip);
+
 void host_dump(host_t *host);
+char *host_ip(host_t *host);
+int host_port(host_t *host);
+
 void host_clean(host_t *host);
 
 #endif

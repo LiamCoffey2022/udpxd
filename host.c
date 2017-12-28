@@ -27,15 +27,11 @@
    which create the sockaddr* structs */
 host_t *get_host(char *ip, int port, struct sockaddr_in *v4, struct sockaddr_in6 *v6) {
   host_t *host = malloc(sizeof(host_t));
-  host->sock = NULL;
-  host->is_v6 = 0;
-  host->port = port;
+  memset(host, 0, sizeof(host_t));
 
   if(ip != NULL) {
     if(is_v6(ip)) {
-      struct sockaddr_in6 *tmp = malloc(sizeof(struct sockaddr_in6));
-      memset(tmp, 0, sizeof(struct sockaddr_in6));
-      
+      struct sockaddr_in6 *tmp =(struct sockaddr_in6 *) &host->ss;
       inet_pton(AF_INET6, ip, (struct in6_addr*)&tmp->sin6_addr);
       
       tmp->sin6_family = AF_INET6;
@@ -47,61 +43,22 @@ host_t *get_host(char *ip, int port, struct sockaddr_in *v4, struct sockaddr_in6
       else
         tmp->sin6_scope_id = 0;
 
-      host->is_v6 = 1;
-      host->sock  = (struct sockaddr*)tmp;
-      host->size = sizeof(struct sockaddr_in6);
-      if(tmp->sin6_scope_id != 0) {
-        host->ip = malloc(INET6_ADDRSTRLEN + 9); /* plus [ % ] \0 , scope*/
-        sprintf(host->ip, "[%s%%%d]", ip, scope);
-      }
-      else {
-        host->ip = malloc(INET6_ADDRSTRLEN + 3); /* plus [ ] \0 */
-        sprintf(host->ip, "[%s]", ip);
-      }
     }
     else {
-      struct sockaddr_in *tmp = malloc(sizeof(struct sockaddr_in));
+      struct sockaddr_in *tmp = (struct sockaddr_in *)&host->ss;
       memset(tmp, 0, sizeof(struct sockaddr_in));
       tmp->sin_family = AF_INET;
       tmp->sin_addr.s_addr = inet_addr( ip );
       tmp->sin_port = htons( port );
 
-      host->sock   = (struct sockaddr*)tmp;
-      host->size = sizeof(struct sockaddr_in);
-      host->ip = malloc(INET_ADDRSTRLEN+1);
-      memcpy(host->ip, ip, INET_ADDRSTRLEN);
+      memcpy(&host->ss, tmp, sizeof(struct sockaddr_in));
     }
   }
   else if(v4 != NULL) {
-    struct sockaddr_in *tmp = malloc(sizeof(struct sockaddr_in));
-    memcpy(tmp, v4, sizeof(struct sockaddr_in));
-    host->ip = malloc(INET_ADDRSTRLEN);
-    inet_ntop(AF_INET, (struct in_addr *)&tmp->sin_addr, host->ip, INET_ADDRSTRLEN);
-
-    host->port = ntohs(tmp->sin_port);
-    host->sock = (struct sockaddr*)tmp;
-    host->size = sizeof(struct sockaddr_in);
+    memcpy(&host->ss, v4, sizeof(struct sockaddr_in));
   }
   else if(v6 != NULL) {
-    struct sockaddr_in6 *tmp = malloc(sizeof(struct sockaddr_in6));
-    memcpy(tmp, v6, sizeof(struct sockaddr_in6));
-    char *myip = malloc(INET6_ADDRSTRLEN);
-    inet_ntop(AF_INET6, (struct in6_addr *)&tmp->sin6_addr, myip, INET6_ADDRSTRLEN);
-
-    host->port = ntohs(tmp->sin6_port);
-    host->sock = (struct sockaddr*)tmp;
-    host->is_v6 = 1;
-    host->size = sizeof(struct sockaddr_in6);
-
-    if(tmp->sin6_scope_id != 0) {
-      host->ip = malloc(INET6_ADDRSTRLEN + 9); /* plus [ % ] \0 , scope*/
-      sprintf(host->ip, "[%s%%%d]", ip, tmp->sin6_scope_id);
-    }
-    else {
-      host->ip = malloc(INET6_ADDRSTRLEN + 3); /* plus [ ] \0 */      
-      sprintf(host->ip, "[%s]", myip);
-    }
-    free(myip);
+    memcpy(&host->ss, v6, sizeof(struct sockaddr_in6));
   }
   else {
     fprintf(stderr, "call invalid!\n");
@@ -158,16 +115,35 @@ int is_linklocal(struct in6_addr *a) {
   return ((a->s6_addr[0] == 0xfe) && ((a->s6_addr[1] & 0xc0) == 0x80));
 }
 
+char *host_ip(host_t *host) {
+  static char ip[INET6_ADDRSTRLEN];
+  if(host->ss.ss_family == AF_INET ){
+     struct sockaddr_in *t =(struct sockaddr_in *) &host->ss;
+     return inet_ntoa(t->sin_addr); 
+  } else if(host->ss.ss_family == AF_INET6 ){
+     struct sockaddr_in6 *t =(struct sockaddr_in6 *) &host->ss;
+     inet_ntop(AF_INET6, &t->sin6_addr, ip, INET6_ADDRSTRLEN);
+     return ip;
+  }
+  return "unknow family";
+}
+
+int host_port(host_t *host) {
+  if(host->ss.ss_family == AF_INET ){
+     struct sockaddr_in *t =(struct sockaddr_in *) &host->ss;
+     return ntohs(t->sin_port);
+  } else if(host->ss.ss_family == AF_INET6 ){
+     struct sockaddr_in6 *t =(struct sockaddr_in6 *) &host->ss;
+     return ntohs(t->sin6_port);
+  }
+  return 0;
+}
+
 void host_dump(host_t *host) {
-  fprintf(stderr, "host -   ip: %s\n", host->ip);
-  fprintf(stderr, "       port: %d\n", host->port);
-  fprintf(stderr, "       isv6: %d\n", host->is_v6);
-  fprintf(stderr, "       size: %ld\n", (long int)host->size);
-  fprintf(stderr, "        src: %p\n", host->sock);
+  fprintf(stderr, "host -   ip: %s\n", host_ip(host));
+  fprintf(stderr, "       port: %d\n", host_port(host));
 }
 
 void host_clean(host_t *host) {
-  free(host->sock);
-  free(host->ip);
   free(host);
 }
