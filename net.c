@@ -258,15 +258,8 @@ while(1) {  // read until empty
               src_h->ip, src_h->port, len, dst_h->ip, dst_h->port);
       verb_prbind(bind_h);
 
-      if(sendto(client->socket, buffer, len, 0, (struct sockaddr*)dst_h->sock, dst_h->size) < 0) {
-        if((errno == EAGAIN) || (errno == EWOULDBLOCK)) // droping packet
-	  continue;
-        fprintf(stderr, "unable to forward to %s:%d\n", dst_h->ip, dst_h->port);
-        perror(NULL);
-      }
-      else {
-        client_seen(client);
-      }
+      sendto(client->socket, buffer, len, 0, (struct sockaddr*)dst_h->sock, dst_h->size);
+      client_seen(client);
       host_clean(src_h);
     }
     else {
