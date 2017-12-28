@@ -119,7 +119,8 @@ char *host_ip(host_t *host) {
   static char ip[INET6_ADDRSTRLEN];
   if(host->ss.ss_family == AF_INET ){
      struct sockaddr_in *t =(struct sockaddr_in *) &host->ss;
-     return inet_ntoa(t->sin_addr); 
+     strcpy(ip,inet_ntoa(t->sin_addr));
+     return ip;
   } else if(host->ss.ss_family == AF_INET6 ){
      struct sockaddr_in6 *t =(struct sockaddr_in6 *) &host->ss;
      inet_ntop(AF_INET6, &t->sin6_addr, ip, INET6_ADDRSTRLEN);
@@ -132,7 +133,8 @@ char *host_ip2(host_t *host) {
   static char ip[INET6_ADDRSTRLEN];
   if(host->ss.ss_family == AF_INET ){
      struct sockaddr_in *t =(struct sockaddr_in *) &host->ss;
-     return inet_ntoa(t->sin_addr); 
+     strcpy(ip,inet_ntoa(t->sin_addr));
+     return ip;
   } else if(host->ss.ss_family == AF_INET6 ){
      struct sockaddr_in6 *t =(struct sockaddr_in6 *) &host->ss;
      inet_ntop(AF_INET6, &t->sin6_addr, ip, INET6_ADDRSTRLEN);
@@ -145,7 +147,8 @@ char *host_ip3(host_t *host) {
   static char ip[INET6_ADDRSTRLEN];
   if(host->ss.ss_family == AF_INET ){
      struct sockaddr_in *t =(struct sockaddr_in *) &host->ss;
-     return inet_ntoa(t->sin_addr); 
+     strcpy(ip,inet_ntoa(t->sin_addr));
+     return ip;
   } else if(host->ss.ss_family == AF_INET6 ){
      struct sockaddr_in6 *t =(struct sockaddr_in6 *) &host->ss;
      inet_ntop(AF_INET6, &t->sin6_addr, ip, INET6_ADDRSTRLEN);

@@ -19,7 +19,7 @@
 #    You can contact me by mail: <tom AT vondein DOT org>.
 
 # warning: do not set -O to 2, see TODO
-CFLAGS = -Wall -Wextra -Werror -O1 -g
+CFLAGS = -Wall -Wextra -Werror -g
 LDFLAGS=
 OBJS   = host.o client.o net.o udpxd.o log.o
 DST    = udpxd

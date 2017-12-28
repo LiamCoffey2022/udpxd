@@ -268,7 +268,7 @@ while(1) {  // read until empty
               host_ip(src_h), host_port(src_h), len, host_ip2(dst_h), host_port(dst_h));
       verb_prbind(bind_h);
 
-      if (bind_h->port)
+      if (host_port(bind_h))
         client_clean(1);
       output = bindsocket(bind_h);
       if (output >= 0) {
@@ -278,14 +278,14 @@ while(1) {  // read until empty
             perror(NULL);
         }
         else {
-          size = listen_h->size;
           host_t *ret_h;
           struct sockaddr_storage ret;
-          getsockname(output, (struct sockaddr*)ret, (socklen_t *)&size);
+          size = sizeof(struct sockaddr_storage);
+          getsockname(output, (struct sockaddr*)&ret, (socklen_t *)&size);
           if(listen_h->ss.ss_family == AF_INET6 ) 
-            ret_h = get_host(NULL, 0, NULL, ret);
+            ret_h = get_host(NULL, 0, NULL, (struct sockaddr_in6 *)&ret);
 	  else 
-            ret_h = get_host(NULL, 0, ret, NULL);
+            ret_h = get_host(NULL, 0, (struct sockaddr_in *)&ret, NULL);
           client = client_new(output, src_h, ret_h);
 
           client_add(client);
@@ -311,11 +311,11 @@ while(1) {  // read until empty
 }
 
 /* handle answer from the outside */
-void handle_outside(int inside, int outside, host_t * outside_h, client_t *client) {
+void handle_outside(int inside, int outside, client_t *client) {
   int len;
   unsigned char buffer[MAX_BUFFER_SIZE];
   struct sockaddr_storage src;
-  size_t size = outside_h->size;
+  size_t size;
 
 while(1) {  // read until empty
 
@@ -339,7 +339,7 @@ while(1) {  // read until empty
       /* FIXME: check src vs. client->src ? */
       verbose("recv remote packet for client %p\n",client);	
       if(sendto(inside, buffer, len, 0,
-                (struct sockaddr*)client->src.sock, client->src.size) < 0) {
+                (struct sockaddr*)&client->src.ss, sizeof(struct sockaddr_storage)) < 0) {
         perror("unable to send back to client"); /* FIXME: add src+port */
         client_close(client);
       }
@@ -423,7 +423,7 @@ int main_loop(int listensocket, host_t *listen_h, host_t *bind_h, host_t *dst_h)
       } else {
         /* remote answer came in on an output fd, proxy back to the inside */
         client_t *client = events[i].data.ptr;
-        handle_outside(listensocket, client->fd, dst_h, client);
+        handle_outside(listensocket, client->fd, client);
       }
     }
 
@@ -449,8 +449,8 @@ void int_handler(int  sig) {
 
 void verb_prbind (host_t *bind_h) {
   if(VERBOSE) {
-    if(strcmp(bind_h->ip, "0.0.0.0") != 0 || strcmp(bind_h->ip, "[::0]") != 0) {
-      verbose("from %s:%d\n", bind_h->ip, bind_h->port);
+    if(strcmp(host_ip(bind_h), "0.0.0.0") != 0 || strcmp(host_ip(bind_h), "[::0]") != 0) {
+      verbose("from %s:%d\n", host_ip(bind_h), host_port(bind_h));
     }
     else {
       verbose("\n");
