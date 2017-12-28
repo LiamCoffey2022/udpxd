@@ -57,7 +57,7 @@ extern int FORKED;
 
 
 void handle_inside(int inside, host_t *listen_h, host_t *bind_h, host_t *dst_h, int efd);
-void handle_outside(int inside, int outside, host_t *outside_h);
+void handle_outside(int inside, int outside, host_t *outside_h, client_t *client);
 
 int main_loop(int listensocket, host_t *listen_h, host_t *bind_h, host_t *dst_h);
 int start_listener (char *inip, char *inpt, char *srcip, char *srcpt, char *dstip,

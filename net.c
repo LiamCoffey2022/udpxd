@@ -258,7 +258,7 @@ while(1) {  // read until empty
               src_h->ip, src_h->port, len, dst_h->ip, dst_h->port);
       verb_prbind(bind_h);
 
-      sendto(client->socket, buffer, len, 0, (struct sockaddr*)dst_h->sock, dst_h->size);
+      sendto(client->fd, buffer, len, 0, (struct sockaddr*)dst_h->sock, dst_h->size);
       client_seen(client);
       host_clean(src_h);
     }
@@ -301,28 +301,27 @@ while(1) {  // read until empty
 	    exit(-1);
           }
           struct epoll_event event;
-          event.data.fd = output;
+          event.data.ptr = client;
 	  event.events = EPOLLIN | EPOLLET;
           if (epoll_ctl(efd, EPOLL_CTL_ADD, output, &event) < 0) {
             perror("error: epoll_ctl_add of newclient");
 	  }
           if(LOG) Log("%s:%d(%s:%d)->%s:%d\n",src_h->ip,src_h->port,ret_h->ip,ret_h->port,dst_h->ip,dst_h->port);
+          verbose("add new client %p\n",client);	
+          // host_clean(ret_h);
         }
       }
-      else {
-        host_clean(src_h);
-      }
+      // host_clean(src_h);
     }
   }
 }
 }
 
 /* handle answer from the outside */
-void handle_outside(int inside, int outside, host_t * outside_h) {
+void handle_outside(int inside, int outside, host_t * outside_h, client_t *client) {
   int len;
   unsigned char buffer[MAX_BUFFER_SIZE];
   struct sockaddr_storage src;
-  client_t *client;
   size_t size = outside_h->size;
 
 while(1) {  // read until empty
@@ -342,12 +341,12 @@ while(1) {  // read until empty
 
   if(len > 0) {
     /* do we know it? */
-    client = client_find_fd(outside);
     if(client != NULL) {
       /* yes, we know it */
       /* FIXME: check src vs. client->src ? */
+      verbose("recv remote packet for client %p\n",client);	
       if(sendto(inside, buffer, len, 0,
-                (struct sockaddr*)client->src->sock, client->src->size) < 0) {
+                (struct sockaddr*)client->src.sock, client->src.size) < 0) {
         perror("unable to send back to client"); /* FIXME: add src+port */
         client_close(client);
       }
@@ -380,7 +379,6 @@ jmp_buf  JumpBuffer;
 int main_loop(int listensocket, host_t *listen_h, host_t *bind_h, host_t *dst_h) {
   int efd;
   struct epoll_event event, *events;
-  int sender;
 
   /* we want to properly tear  down running sessions when interrupted,
      int_handler() will be called on INT or TERM signals */
@@ -396,7 +394,7 @@ int main_loop(int listensocket, host_t *listen_h, host_t *bind_h, host_t *dst_h)
     perror("error: epoll_create1");
     exit(-1);
   }
-  event.data.fd = listensocket;
+  event.data.ptr = 0;
   event.events = EPOLLIN | EPOLLET;
   if (epoll_ctl(efd, EPOLL_CTL_ADD, listensocket, &event) < 0) {
     perror("error: epoll_ctl_add of listenfd");
@@ -425,14 +423,15 @@ int main_loop(int listensocket, host_t *listen_h, host_t *bind_h, host_t *dst_h)
 
     n = epoll_wait(efd, events, MAXEVENTS, -1);
     for (i = 0; i < n; i++) {
-      if (listensocket == events[i].data.fd) {
+      if (0 == events[i].data.ptr) {
       /* incoming client on  the inside, get src, bind  output fd, add
          to list if known, otherwise just handle it */
         handle_inside(listensocket, listen_h, bind_h, dst_h, efd);
+      } else {
+        /* remote answer came in on an output fd, proxy back to the inside */
+        client_t *client = events[i].data.ptr;
+        handle_outside(listensocket, client->fd, dst_h, client);
       }
-      /* remote answer came in on an output fd, proxy back to the inside */
-      sender = events[i].data.fd;
-      handle_outside(listensocket, sender, dst_h);
     }
 
     /* close old outputs, if any */

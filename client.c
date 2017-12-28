@@ -27,22 +27,13 @@ void client_del(client_t *client) {
 }
 
 void client_add(client_t *client) {
-  HASH_ADD_INT(clients, socket, client);
-}
-
-client_t *client_find_fd(int fd) {
-  client_t *client = NULL;
-  HASH_FIND_INT(clients, &fd, client);
-  return client; /*  maybe NULL! */
+  HASH_ADD(hh, clients, src, sizeof(host_t), client);
 }
 
 client_t *client_find_src(host_t *src) {
-  client_t *current = NULL;
-  client_iter(clients, current) {
-    if(strcmp(current->src->ip, src->ip) == 0 && current->src->port == src->port)
-      return current;
-  }
-  return NULL;
+  client_t *client= NULL;
+  HASH_FIND(hh, clients, src, sizeof(host_t), client);
+  return client; /*  maybe NULL! */
 }
 
 void client_seen(client_t *client) {
@@ -51,18 +42,16 @@ void client_seen(client_t *client) {
 
 client_t *client_new(int fd, host_t *src, host_t *dst) {
   client_t *client = malloc(sizeof(client_t));
-  client->socket = fd;
-  client->src = src;
-  client->dst = dst;
+  client->src = *src;
+  client->dst = *dst;
+  client->fd = fd;
   client_seen(client);
   return client;
 }
 
 void client_close(client_t *client) {
   client_del(client);
-  close(client->socket);
-  host_clean(client->src);
-  host_clean(client->dst);
+  close(client->fd);
   free(client);
 }
 
@@ -74,7 +63,7 @@ void client_clean(int asap) {
     diff = now - current->lastseen;
     if(diff >= MAXAGE || asap) {
       verbose("closing socket %s:%d for client %s:%d (aged out after %d seconds)\n",
-              current->src->ip, current->src->port, current->dst->ip, current->dst->port, MAXAGE);
+              current->src.ip, current->src.port, current->dst.ip, current->dst.port, MAXAGE);
       client_close(current);
     }
   }
