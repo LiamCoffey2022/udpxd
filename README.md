@@ -1,7 +1,6 @@
-[![Build Status](https://travis-ci.org/TLINDEN/udpxd.svg?branch=master)](https://travis-ci.org/TLINDEN/udpxd)
-[![Build status](https://ci.appveyor.com/api/projects/status/0tujxsr8u324dv9v?svg=true)](https://ci.appveyor.com/project/TLINDEN/udpxd)
-
 ## UDPXD - A general purpose UDP relay/port forwarder/proxy
+
+通用的UDP relay/port转发器，使用epoll高效调用接口。
 
 This is the README file for the network program udpxd.
 
