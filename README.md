@@ -1,4 +1,4 @@
-## UDPXD - A general purpose UDP relay/port forwarder/proxy
+## UDPXD - A general purpose UDP relay/port forwarder/proxy using epoll
 
 通用的UDP relay/port转发器，使用epoll高效调用接口。
 
@@ -28,7 +28,7 @@ you need either BSD make or GNU make installed to build it.
 First you need to check out the source code. Skip this, if
 you have already done so:
 
-    git clone git@github.com:TLINDEN/udpxd.git
+    git clone git@github.com:bg6cq/udpxd.git
 
 Next, change into the newly created directory 'udpxd' and
 compile the source code:
