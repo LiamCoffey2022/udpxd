@@ -255,7 +255,7 @@ while(1) {  // read until empty
               host_ip(src_h), host_port(src_h), len, host_ip2(dst_h), host_port(dst_h));
       verb_prbind(bind_h);
 
-      sendto(client->fd, buffer, len, 0, (struct sockaddr*)&dst_h->ss, sizeof(struct sockaddr_storage));
+      write(client->fd, buffer, len);
       client_seen(client);
       host_clean(src_h);
     }
@@ -265,19 +265,20 @@ while(1) {  // read until empty
               host_ip(src_h), host_port(src_h), len, host_ip2(dst_h), host_port(dst_h));
       verb_prbind(bind_h);
 
-      /* if (host_port(bind_h))  // comment out by james@ustc.edu.cn
+      /* if (host_port(bind_h))  // comment out by james@ustc.edu.cn, may cause racecondition when client was cleaned but has data recv
         client_clean(1);
       */
       output = bindsocket(bind_h);
       if (output >= 0) {
-        /* send req out */
-        if(sendto(output, buffer, len, 0, (struct sockaddr*)&dst_h->ss, sizeof(struct sockaddr_storage)) < 0) {
-            fprintf(stderr, "unable to forward to %s:%d\n", host_ip(dst_h), host_port(dst_h));
+        if(connect(output, (struct sockaddr*)&dst_h->ss, sizeof(struct sockaddr_storage)) < 0) {
+            fprintf(stderr, "unable to connect to %s:%d\n", host_ip(dst_h), host_port(dst_h));
             perror(NULL);
         }
         else {
           host_t *ret_h;
           struct sockaddr_storage ret;
+          /* send req out */
+          write(output, buffer, len);
           size = sizeof(struct sockaddr_storage);
           getsockname(output, (struct sockaddr*)&ret, (socklen_t *)&size);
           ret_h = get_host(NULL, 0, (struct sockaddr *)&ret);
@@ -311,12 +312,25 @@ void handle_outside(int inside, int outside, client_t *client) {
   unsigned char buffer[MAX_BUFFER_SIZE];
   struct sockaddr_storage src;
   size_t size;
+  if(client == NULL) {
+    fprintf(stderr,"what? client == NULL\n");
+    exit(1);
+  }
 
 while(1) {  // read until empty
 
   size = sizeof(src);
   
   len = recvfrom( outside, buffer, sizeof( buffer ), 0, (struct sockaddr*)&src, (socklen_t *)&size );
+  if(len > 0) {
+    /* yes, we know it */
+    verbose("recv remote packet for client %p\n",client);	
+    sendto(inside, buffer, len, 0, (struct sockaddr*)&client->src.ss, sizeof(struct sockaddr_storage));
+  }
+  if(len == 0)  {
+    fprintf(stderr, "weird, recvfrom returned 0 bytes!\n");
+    continue;
+  }
 
   if(len == -1) {
      if(errno == EINTR)
@@ -325,26 +339,6 @@ while(1) {  // read until empty
         perror("recvfrom client fd error:");
      /*  all data processed or error */ 
      return;
-  }
-
-  if(len > 0) {
-    /* do we know it? */
-    if(client != NULL) {
-      /* yes, we know it */
-      /* FIXME: check src vs. client->src ? */
-      verbose("recv remote packet for client %p\n",client);	
-      if(sendto(inside, buffer, len, 0,
-                (struct sockaddr*)&client->src.ss, sizeof(struct sockaddr_storage)) < 0) {
-        perror("unable to send back to client"); /* FIXME: add src+port */
-        client_close(client);
-      }
-    }
-    else {
-      fprintf(stderr, "weird, no matching client found!\n");
-    }
-  }
-  else {
-    fprintf(stderr, "weird, recvfrom returned 0 bytes!\n");
   }
 }
 }
