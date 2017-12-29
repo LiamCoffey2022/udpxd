@@ -121,6 +121,7 @@ int drop_privileges(char *user, char *chrootdir) {
     
     if(pw == NULL) {
       perror("user not found");
+      fprintf(stderr,"user name: %s\n",user);
       return 1;
     }
 
