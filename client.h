@@ -41,8 +41,6 @@ typedef uint8_t byte;
 #include "uthash.h"
 #include "host.h"
 
-#define MAXAGE         30 /* seconds after which to close outgoing sockets and forget client src */
-
 struct _client_t {
   host_t src;              /* client src (ip+port) from incoming socket */
   host_t dst;              /* client dst (ip+port) to outgoing socket */
@@ -56,6 +54,7 @@ extern client_t *clients;
 extern int VERBOSE;
 extern int FORKED;
 extern int ACK_DEL;
+extern int MAXAGE;
 
 /*  wrapper for HASH_ITER */
 /** Iterate over the list of clients.

@@ -29,6 +29,7 @@ int VERBOSE = 0;
 int FORKED = 0;
 int LOG = 0;
 int ACK_DEL = 0;
+int MAXAGE = 30;         /* seconds after which to close outgoing sockets and forget client src */
 
 /* parse ip:port */
 int parse_ip(char *src, char *ip, char *pt) {
@@ -97,6 +98,7 @@ void usage() {
           "--bind       -b <ip[:port]>   bind ip used for outgoing requests\n"
           "                              specify port for promiscuous mode\n"
           "--to         -t <ip:port>     destination to forward requests to\n"
+          "--timetout   -m timeout       timeout before free connections\n"
           "--daemon     -d               daemon mode, fork into background\n"
           "--pidfile    -p <file>        pidfile, default: /var/run/udpxd.pid\n"
           "--user       -u <user>        run as user (only in daemon mode)\n"
@@ -126,6 +128,7 @@ int main ( int argc, char* argv[] ) {
     { "listen",    required_argument, NULL,           'l' },
     { "bind",      required_argument, NULL,           'b' },
     { "to",        required_argument, NULL,           't' },
+    { "timeout",   required_argument, NULL,           'm' },
     { "version",   no_argument,       NULL,           'V' },
     { "help",      no_argument,       NULL,           'h' },
     { "verbose",   no_argument,       NULL,           'v' },
@@ -149,7 +152,7 @@ int main ( int argc, char* argv[] ) {
   strncpy(user, "nobody", 7);
   strncpy(chroot, "/var/empty", 11);
   
-  while ((opt = getopt_long(argc, argv, "ALl:b:t:u:c:vdVh?", longopts, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "ALl:b:t:u:c:m:vdVh?", longopts, NULL)) != -1) {
     switch (opt) {
     case 'V':
       fprintf(stderr, "This is %s version %s\n", argv[0], UDPXD_VERSION);
@@ -208,6 +211,9 @@ int main ( int argc, char* argv[] ) {
       pidfile[MAX_BUFFER_SIZE-1] = '\0';
       break;
     case 'u':
+      MAXAGE=atoi(optarg);
+      break;
+    case 'm':
       strncpy(user, optarg, 128);
       user[128-1] = '\0';
       break;
