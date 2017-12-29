@@ -54,7 +54,7 @@ extern client_t *clients;
 extern int VERBOSE;
 extern int FORKED;
 extern int ACK_DEL;
-extern int MAXAGE;
+extern unsigned int MAXAGE;
 
 /*  wrapper for HASH_ITER */
 /** Iterate over the list of clients.

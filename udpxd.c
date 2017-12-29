@@ -29,7 +29,7 @@ int VERBOSE = 0;
 int FORKED = 0;
 int LOG = 0;
 int ACK_DEL = 0;
-int MAXAGE = 30;         /* seconds after which to close outgoing sockets and forget client src */
+unsigned int MAXAGE = 30;         /* seconds after which to close outgoing sockets and forget client src */
 
 /* parse ip:port */
 int parse_ip(char *src, char *ip, char *pt) {
