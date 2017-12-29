@@ -55,6 +55,7 @@ typedef struct _client_t client_t;
 extern client_t *clients;
 extern int VERBOSE;
 extern int FORKED;
+extern int ACK_DEL;
 
 /*  wrapper for HASH_ITER */
 /** Iterate over the list of clients.

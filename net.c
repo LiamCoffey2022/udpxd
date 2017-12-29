@@ -326,6 +326,10 @@ while(1) {  // read until empty
     /* yes, we know it */
     verbose("recv remote packet for client %p\n",client);	
     sendto(inside, buffer, len, 0, (struct sockaddr*)&client->src.ss, sizeof(struct sockaddr_storage));
+    if( ACK_DEL ) {	// got acked packet, then close, for req ack udp, such as DNS
+       client_close(client);
+       return;
+    }
   }
   if(len == 0)  {
     fprintf(stderr, "weird, recvfrom returned 0 bytes!\n");
