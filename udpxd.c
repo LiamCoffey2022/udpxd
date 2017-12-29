@@ -210,10 +210,10 @@ int main ( int argc, char* argv[] ) {
       strncpy(pidfile, optarg, MAX_BUFFER_SIZE);
       pidfile[MAX_BUFFER_SIZE-1] = '\0';
       break;
-    case 'u':
+    case 'm':
       MAXAGE=atoi(optarg);
       break;
-    case 'm':
+    case 'u':
       strncpy(user, optarg, 128);
       user[128-1] = '\0';
       break;
