@@ -171,18 +171,18 @@ int start_listener (char *inip, char *inpt, char *srcip, char *srcpt, char *dsti
     break;    /* child, fork ok, continue */
   }
   
-  listen_h = get_host(inip, atoi(inpt), NULL, NULL);
-  dst_h    = get_host(dstip, atoi(dstpt), NULL, NULL);
+  listen_h = get_host(inip, atoi(inpt), NULL);
+  dst_h    = get_host(dstip, atoi(dstpt), NULL);
   bind_h   = NULL;
 
   if(srcip != NULL) {
-    bind_h   = get_host(srcip, atoi(srcpt), NULL, NULL);
+    bind_h   = get_host(srcip, atoi(srcpt), NULL);
   }
   else {
     if(dst_h->ss.ss_family == AF_INET6 )
-      bind_h = get_host("::0", 0, NULL, NULL);
+      bind_h = get_host("::0", 0, NULL);
     else
-      bind_h = get_host("0.0.0.0", 0, NULL, NULL);
+      bind_h = get_host("0.0.0.0", 0, NULL);
   }
 
   int listen = bindsocket(listen_h);
@@ -212,7 +212,7 @@ int start_listener (char *inip, char *inpt, char *srcip, char *srcpt, char *dsti
     close(STDERR_FILENO);
   }
     
-  main_loop(listen, listen_h, bind_h, dst_h);
+  main_loop(listen, bind_h, dst_h);
 
   host_clean(bind_h);
   host_clean(listen_h);
@@ -224,7 +224,7 @@ int start_listener (char *inip, char *inpt, char *srcip, char *srcpt, char *dsti
 }
 
 /* handle new or known incoming requests */
-void handle_inside(int inside, host_t *listen_h, host_t *bind_h, host_t *dst_h, int efd) {
+void handle_inside(int inside, host_t *bind_h, host_t *dst_h, int efd) {
   int len;
   unsigned char buffer[MAX_BUFFER_SIZE];
   struct sockaddr_storage src;
@@ -246,10 +246,7 @@ while(1) {  // read until empty
   }
 
   if(len > 0) {
-    if(listen_h->ss.ss_family == AF_INET6)
-      src_h = get_host(NULL, 0, NULL, (struct sockaddr_in6 *)&src);
-    else
-      src_h = get_host(NULL, 0, (struct sockaddr_in *)&src, NULL);
+    src_h = get_host(NULL, 0, (struct sockaddr *)&src);
     /* do we know it ? */
     client = client_find_src(src_h);
     if(client != NULL) {
@@ -268,8 +265,9 @@ while(1) {  // read until empty
               host_ip(src_h), host_port(src_h), len, host_ip2(dst_h), host_port(dst_h));
       verb_prbind(bind_h);
 
-      if (host_port(bind_h))
+      /* if (host_port(bind_h))  // comment out by james@ustc.edu.cn
         client_clean(1);
+      */
       output = bindsocket(bind_h);
       if (output >= 0) {
         /* send req out */
@@ -282,10 +280,7 @@ while(1) {  // read until empty
           struct sockaddr_storage ret;
           size = sizeof(struct sockaddr_storage);
           getsockname(output, (struct sockaddr*)&ret, (socklen_t *)&size);
-          if(listen_h->ss.ss_family == AF_INET6 ) 
-            ret_h = get_host(NULL, 0, NULL, (struct sockaddr_in6 *)&ret);
-	  else 
-            ret_h = get_host(NULL, 0, (struct sockaddr_in *)&ret, NULL);
+          ret_h = get_host(NULL, 0, (struct sockaddr *)&ret);
           client = client_new(output, src_h, ret_h);
 
           client_add(client);
@@ -301,10 +296,10 @@ while(1) {  // read until empty
 	  }
           if(LOG) Log("%s:%d(%s:%d)->%s:%d\n",host_ip(src_h),host_port(src_h),host_ip2(ret_h),host_port(ret_h),host_ip3(dst_h),host_port(dst_h));
           verbose("add new client %p\n",client);	
-          // host_clean(ret_h);
+          host_clean(ret_h);
         }
       }
-      // host_clean(src_h);
+      host_clean(src_h);
     }
   }
 }
@@ -369,7 +364,7 @@ int set_socket_non_blocking(int fd) {
 jmp_buf  JumpBuffer;
 
 /* runs forever, handles incoming requests on the inside and answers on the outside */
-int main_loop(int listensocket, host_t *listen_h, host_t *bind_h, host_t *dst_h) {
+int main_loop(int listensocket, host_t *bind_h, host_t *dst_h) {
   int efd;
   struct epoll_event event, *events;
 
@@ -419,7 +414,7 @@ int main_loop(int listensocket, host_t *listen_h, host_t *bind_h, host_t *dst_h)
       if (0 == events[i].data.ptr) {
       /* incoming client on  the inside, get src, bind  output fd, add
          to list if known, otherwise just handle it */
-        handle_inside(listensocket, listen_h, bind_h, dst_h, efd);
+        handle_inside(listensocket, bind_h, dst_h, efd);
       } else {
         /* remote answer came in on an output fd, proxy back to the inside */
         client_t *client = events[i].data.ptr;

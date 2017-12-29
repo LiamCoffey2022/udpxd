@@ -25,7 +25,7 @@
    which is easier to pass between functions,
    maybe v4 or v6, filled from existing structs or from strings,
    which create the sockaddr* structs */
-host_t *get_host(char *ip, int port, struct sockaddr_in *v4, struct sockaddr_in6 *v6) {
+host_t *get_host(char *ip, int port, struct sockaddr *sa) {
   host_t *host = malloc(sizeof(host_t));
   memset(host, 0, sizeof(host_t));
 
@@ -54,11 +54,11 @@ host_t *get_host(char *ip, int port, struct sockaddr_in *v4, struct sockaddr_in6
       memcpy(&host->ss, tmp, sizeof(struct sockaddr_in));
     }
   }
-  else if(v4 != NULL) {
-    memcpy(&host->ss, v4, sizeof(struct sockaddr_in));
-  }
-  else if(v6 != NULL) {
-    memcpy(&host->ss, v6, sizeof(struct sockaddr_in6));
+  else if(sa) {
+    if(sa->sa_family == AF_INET) 
+      memcpy(&host->ss, sa, sizeof(struct sockaddr_in));
+    else if(sa->sa_family == AF_INET6) 
+      memcpy(&host->ss, sa, sizeof(struct sockaddr_in6));
   }
   else {
     fprintf(stderr, "call invalid!\n");
