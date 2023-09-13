@@ -1,6 +1,6 @@
 ## UDPXD - A general purpose UDP relay/port forwarder/proxy using epoll
 
-The udpxd is developed by TLINDEN, but bg6cq impreoved it with epoll calls.
+The udpxd is developed by TLINDEN, then bg6cq impreoved it with epoll calls.
 
 This is the README file for the network program udpxd.
 
