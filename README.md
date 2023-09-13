@@ -1,6 +1,6 @@
 ## UDPXD - A general purpose UDP relay/port forwarder/proxy using epoll
 
-通用的UDP relay/port转发器，使用epoll高效调用接口。
+The udpxd is developed by TLINDEN, but bg6cq impreoved it with epoll calls.
 
 This is the README file for the network program udpxd.
 
